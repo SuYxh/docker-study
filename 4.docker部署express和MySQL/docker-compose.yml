@@ -1,0 +1,38 @@
+version: '3.8'  # 使用 Docker Compose 文件格式版本 3.8。
+
+services:  # 定义服务列表。
+  app:  # 第一个服务：Express 应用。
+    build:  # 构建选项。
+      context: .  # 构建上下文目录设置为当前目录。
+      dockerfile: Dockerfile  # 使用的 Dockerfile 名称。
+    image: docker-express-mysql:latest  # 在这里定义构建后的镜像名字
+    ports:
+      - "3000:3000"  # 端口映射：将容器的 3000 端口映射到宿主机的 3000 端口。
+    volumes:
+      - .:/app  # 卷挂载：将当前目录挂载到容器的 /app 目录。
+    # 环境变量应该从环境文件中进行读取，这里只是学习 docker-compose 的配置文件，所以直接写死在这里 
+    environment:  # 环境变量设置，供应用使用。
+      - MYSQL_HOST=mysql  # MySQL 服务器的主机名。
+      - MYSQL_USER=root  # MySQL 用户名。
+      - MYSQL_PASSWORD=password  # MySQL 用户密码。
+      - MYSQL_DATABASE=exampledb  # 使用的数据库名称。
+    depends_on:  # 依赖设置，指定当前服务依赖的其他服务。
+      mysql:  # 依赖于 mysql 服务。
+        condition: service_healthy  # 依赖条件：mysql 服务必须处于健康状态。
+  
+  mysql:  # 第二个服务：MySQL 数据库。
+    image: mysql:8.0  # 使用的镜像为官方 MySQL 8.0 镜像。
+    environment:  # 环境变量设置。
+      MYSQL_ROOT_PASSWORD: password  # MySQL root 用户的密码。
+      MYSQL_DATABASE: exampledb  # 初始化时创建的数据库名称。
+    volumes:
+      - ./mysql-data:/var/lib/mysql  # 卷挂载：将本地的 ./mysql-data 目录挂载到容器的 /var/lib/mysql 目录。
+    healthcheck:  # 健康检查配置。
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]  # 健康检查命令。
+      interval: 10s  # 检查间隔。
+      timeout: 20s  # 超时时间。
+      retries: 10  # 重试次数。
+      start_period: 30s  # 启动前等待时间，用于服务启动初期。
+
+volumes:  # 定义使用的数据卷。
+  mysql-data:  # 命名卷：用于 MySQL 数据持久化。

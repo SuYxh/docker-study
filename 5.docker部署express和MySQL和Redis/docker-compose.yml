@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: example  # 设置 MySQL root 用户的密码
+      MYSQL_DATABASE: mydb          # 创建初始数据库
+      MYSQL_USER: user              # 设置 MySQL 用户名
+      MYSQL_PASSWORD: password      # 设置 MySQL 用户密码
+    ports:
+      - "3306:3306"                 # 映射 MySQL 端口到宿主机
+    volumes:
+      - ./mysql-data:/var/lib/mysql # 持久化 MySQL 数据到宿主机
+    restart: always                 # 若服务失败，总是尝试重启服务
+    healthcheck:                    # 定义服务的健康检查
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s                 # 检查频率
+      timeout: 5s                   # 检查超时时间
+      retries: 5                    # 检查失败后的重试次数
+      start_period: 30s             # 服务启动后，开始健康检查前的等待时间
+
+  redis:
+    image: redis:6.0
+    ports:
+      - "6379:6379"                 # 映射 Redis 端口到宿主机
+    volumes:
+      - ./redis-data:/data          # 持久化 Redis 数据到宿主机
+      - ./redis.conf:/usr/local/etc/redis/redis.conf # 使用自定义配置文件
+    command: redis-server /usr/local/etc/redis/redis.conf # 启动命令
+    restart: always                 # 若服务失败，总是尝试重启服务
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s                 # 检查频率
+      timeout: 5s                   # 检查超时时间
+      retries: 5                    # 检查失败后的重试次数
+      start_period: 10s             # 服务启动后，开始健康检查前的等待时间
+
+  express-app:
+    build:
+      context: .                    # 指定 Docker 构建的上下文目录
+      dockerfile: Dockerfile        # 指定用于构建的 Dockerfile
+      args:
+        - IMAGE_NAME=my-custom-express-app # 构建参数，传递给 Dockerfile
+    image: my-custom-express-app:latest  # 自定义镜像名称及标签
+    ports:
+      - "3000:3000"                 # 映射 Express 应用端口到宿主机
+    depends_on:
+      mysql:
+        condition: service_healthy  # 表示依赖 MySQL 服务的健康状态
+      redis:
+        condition: service_healthy  # 表示依赖 Redis 服务的健康状态
+    restart: always                 # 若服务失败，总是尝试重启服务
+
+volumes:
+  mysql-data:                       # 定义用于 MySQL 数据持久化的卷
+  redis-data:                       # 定义用于 Redis 数据持久化的卷
